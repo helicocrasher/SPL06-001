@@ -2,11 +2,14 @@
 #define SPL06_001_GLUE_H
 
 #include "stm32g0xx_hal.h"
+#include "stm32g0xx_hal_exti.h"
+#include "stm32g0xx_hal_i2c.h"
 //#include "i2c.h" // Ensure this header provides hi2c2
 #ifdef __cplusplus
 extern "C" {
 #endif
 extern I2C_HandleTypeDef hi2c2;
+extern volatile uint8_t i2cWriteComplete;  
 #ifdef __cplusplus
 }
 #endif
@@ -19,6 +22,7 @@ extern I2C_HandleTypeDef hi2c2;
 
 extern UART_HandleTypeDef huart2;
 
+ 
 
 
 // Arduino compatibility
@@ -42,11 +46,14 @@ public:
     // Non-blocking transmit (interrupt mode)
     bool write(uint8_t *data, size_t len) {
       uint8_t status;
-      char str_Buf[60];
+ //     char str_Buf[80];
         //SerialI2CDebug_print((char*)"write non blocking");
-        status = HAL_I2C_Master_Transmit_IT(&hi2c2, _addr, data, len) == HAL_OK;
-        snprintf (str_Buf, 60, "Transmit_IT  I2C_adr=0x%x wbuf=0x%04x Wlen=%d Status=0x%02x\n\r", _addr/2, *data, len, status); // Ensure register address is sent as single byte
-        SerialI2CDebug_print(str_Buf);
+
+//        status = HAL_I2C_Master_Transmit_IT(&hi2c2, _addr, data, len) == HAL_OK;
+        status = HAL_I2C_Master_Transmit(&hi2c2, _addr, data, len,100) == HAL_OK;
+//        snprintf (str_Buf, 80, "TX_IT \tI2C_Addr=0x%x Wlen=%d \t\tSPL_Reg=0x%02x W_Val=0x%02x W_Stat=0x%02x\n\r", _addr/2, len, *data, *(data+1), status); // Ensure register address is sent as single byte
+//        SerialI2CDebug_print(str_Buf);
+        HAL_Delay(2);
         return (status);
     }
     // Non-blocking receive (interrupt mode)
@@ -69,26 +76,30 @@ public:
     // SPL06-001 expects this for register read
 
     bool write_then_read(uint8_t *wbuf, size_t wlen, uint8_t *rbuf, size_t rlen) {
-      char str_Buf[60],str_Buf2[60];
+      char str_Buf[80];
       int status;
-        snprintf (str_Buf, 60, "Transmit_Receive_I2C_adr=0x%x wbuf=0x%02x Wlen=%d Rlen=%d ", _addr/2, *wbuf, wlen, rlen); // Ensure register address is sent as single byte
-        SerialI2CDebug_print(str_Buf);
+  //      snprintf (str_Buf, 80, "TX_RX \tI2C_Addr=0x%x Wlen=%d Rlen=%d \tSPL_Reg=0x%02x ", _addr/2, wlen, rlen, *wbuf); // Ensure register address is sent as single byte
+//        SerialI2CDebug_print(str_Buf);
         status = HAL_I2C_Master_Transmit(&hi2c2, _addr, wbuf, wlen, 100);
         if (status != HAL_OK){
-          snprintf (str_Buf2, 60, "Write_Status= 0x%02x \n\r", status); // Ensure register address is sent as single byte
-          SerialI2CDebug_print(str_Buf2);
+          snprintf (str_Buf, 80, "W_Stat= 0x%02x \n\r", status); // Ensure register address is sent as single byte
+          SerialI2CDebug_print(str_Buf);
           return false;
         }
         HAL_Delay(1); 
         status=HAL_I2C_Master_Receive(&hi2c2, _addr, rbuf, rlen, 100);
         if (status != HAL_OK) {
-        snprintf (str_Buf2, 60, " Read_Status= 0x%02x \n\r", status); // Ensure register address is sent as single byte
-        SerialI2CDebug_print(str_Buf2);
+        snprintf (str_Buf, 80, " R_Val=0x%02x R_Stat= 0x%02x \n\r", *rbuf, status); // Ensure register address is sent as single byte
+        SerialI2CDebug_print(str_Buf);
+            HAL_I2C_DeInit(&hi2c2);
+            HAL_Delay(2);
+            HAL_I2C_Init(&hi2c2);
+            HAL_Delay(2);
           return false;
         }
         HAL_Delay(1); 
-        snprintf(str_Buf2,60,"rbuf=0x%04x Status=0x%02x\n\r", *rbuf, status);
-        SerialI2CDebug_print(str_Buf2); 
+//        snprintf(str_Buf2,80,"R_Val=0x%04x R_Stat=0x%02x\n\r", *rbuf, status);
+//        SerialI2CDebug_print(str_Buf2); 
         return true;
 
     }
