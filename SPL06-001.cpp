@@ -1,3 +1,4 @@
+#include "spl06_001_glue.h" // Glue for Adafruit/Arduino compatibility
 #include "SPL06-001.h"
 
 /*!
@@ -166,8 +167,8 @@ int8_t SPL06::readSensorID(byte reg)
     int16_t tmp = read8(reg);
 
     //datasheet page 27
-    _prodID = tmp & 0B11110000; //only read the first 4 bits using bit mask
-    _revID  = tmp & 0B00001111; //only read the last 4 bits using bit mask
+    _prodID = tmp & 0xF0; //only read the first 4 bits using bit mask
+    _revID  = tmp & 0x0F; //only read the last 4 bits using bit mask
 
     return _prodID;
 }
@@ -191,7 +192,7 @@ int16_t SPL06::get_c1(void)
     uint8_t tmp_MSB = read8(SPL06_COEF_C0C1);
     uint8_t tmp_LSB = read8(SPL06_COEF_C1);
 
-    tmp_MSB = tmp_MSB & 0XF;
+    tmp_MSB = tmp_MSB & 0xF;
 
     int16_t tmp = (tmp_MSB << 8) | tmp_LSB;
 
@@ -226,7 +227,7 @@ int32_t SPL06::get_c10(void)
     uint8_t tmp_LSB = read8(SPL06_COEF_C10a);
     uint8_t tmp_XLSB = read8(SPL06_COEF_C10b);
 
-    tmp_MSB = tmp_MSB & 0B00001111; //only read the last 4 bits using a bit mask
+    tmp_MSB = tmp_MSB & 0x0F; //only read the last 4 bits using a bit mask
 
     int32_t tmp = (tmp_MSB << 4) | tmp_LSB;
     tmp = (tmp << 8) | tmp_XLSB;
@@ -252,97 +253,84 @@ double SPL06::get_scale_factor(const uint8_t _regToRead, byte _bitToKeep)
     uint8_t tmp_Byte = read8(_regToRead);
     tmp_Byte = tmp_Byte & _bitToKeep; //filter out which bits to keep using provided bit mask
     switch (tmp_Byte){
-    case 0B000:
-        return 524288.0d;
-        break;
-    case 0B001:
-        return 1572864.0d;
-        break;
-    case 0B010:
-        return 3670016.0d;
-        break;
-    case 0B011:
-        return 7864320.0d;
-        break;
-    case 0B100:
-        return 253952.0d;
-        break;
-    case 0B101:
-        return 516096.0d;
-        break;
-    case 0B110:
-        return 1040384.0d;
-        break;
-    case 0B111:
-        return 2088960.0d;
-        break;
+    case 0x0:
+        return 524288.0F;
+    case 0x1:
+        return 1572864.0F;
+    case 0x2:
+        return 3670016.0F;
+    case 0x3:
+        return 7864320.0F;
+    case 0x4:
+        return 253952.0F;
+    case 0x5:
+        return 516096.0F;
+    case 0x6:
+        return 1040384.0F;
+    case 0x7:
+        return 2088960.0F;
     default:
         return 0.0;
-        break;
-    }//switch
+    }
     return 0.0;//this should result in a "NAN" value, which should bring the attention to the user
 }
 int32_t SPL06::get_traw()
 {
     //raw temperature from the 24bit register; datasheet table 7 page 17
-    if (!_sensorID)
+    if (!_sensorID) {
         return int32_t(NAN); // begin() not called yet
-
+    }
     uint8_t tmp_MSB = read8(SPL06_TMP_B2); // MSB
     uint8_t tmp_LSB = read8(SPL06_TMP_B1); // LSB
     uint8_t tmp_XLSB = read8(SPL06_TMP_B0); // XLSB
-
     int32_t tmp = (tmp_MSB << 8) | tmp_LSB;
     tmp = (tmp << 8) | tmp_XLSB;
-
-    if(tmp & (1 << 23))
+    if(tmp & (1 << 23)) {
         tmp = tmp | 0XFF000000; // Set left bits to one for 2's complement conversion of negative number
+    }
     return tmp;
 }
 double SPL06::get_traw_sc()
 {
     //scaled raw temperature, datasheet page 13
-    double k = get_scale_factor(SPL06_TMP_CFG, 0B00000111); //temperature keep last 3 bit using bit mask
-	return ( double( get_traw() )/k );
+    double k = get_scale_factor(SPL06_TMP_CFG, 0x07); //temperature keep last 3 bit using bit mask
+    return ( double( get_traw() )/k );
 }
 //value in Celcius
 double SPL06::readTemperature()
 {
     //compensated temperature, datasheet page 13
-    if (!_sensorID)
-        return NAN; // begin() not called yet
-	return ( (double(_spl06_calib.c0) * 0.5d) + (double(_spl06_calib.c1) * get_traw_sc()) );
+    if (!_sensorID)        return NAN; // begin() not called yet
+    return ( (double(_spl06_calib.c0) * 0.5F) + (double(_spl06_calib.c1) * get_traw_sc()) );
 }
 //value in Fahrenheit
 double SPL06::readTemperatureF()
 {
     //compensated temperature, datasheet page 13; transformed to Fahrenheit
-    if (!_sensorID)
-        return NAN; // begin() not called yet
-	return (((double(_spl06_calib.c0) * 0.5d) + (double(_spl06_calib.c1) * get_traw_sc())) * 9.0d/5.0d) + 32.0d;
+    if (!_sensorID)         return NAN; // begin() not called yet
+	return (((double(_spl06_calib.c0) * 0.5F) + (double(_spl06_calib.c1) * get_traw_sc())) * 9.0F/5.0F) + 32.0F;
 }
 int32_t SPL06::get_praw()
 {
     //raw pressure from the 24bit register; datasheet table 7 page 17
-    if (!_sensorID)
+    if (!_sensorID) {
         return int32_t(NAN); // begin() not called yet
-
+    }
     uint8_t tmp_MSB = read8(SPL06_PSR_B2); // MSB
     uint8_t tmp_LSB = read8(SPL06_PSR_B1); // LSB
     uint8_t tmp_XLSB = read8(SPL06_PSR_B0); // XLSB
-
     int32_t tmp = (tmp_MSB << 8) | tmp_LSB;
     tmp = (tmp << 8) | tmp_XLSB;
-
-    if(tmp & (1 << 23))
+    if(tmp & (1 << 23)) {
         tmp = tmp | 0XFF000000; // Set left bits to one for 2's complement conversion of negative number
+    }
     return tmp;
 }
 double SPL06::get_praw_sc()
 {
     //scaled raw pressure, datasheet page 12
-    double k = get_scale_factor(SPL06_PSR_CFG, 0B00001111); //pressure keep last 4 bit using bit mask
-	return ( double(get_praw())/k );
+    double k = get_scale_factor(SPL06_PSR_CFG, 0x0F); //pressure keep last 4 bit using bit mask
+    return ( double(get_praw())/k );
 }
 //in Pascal
 double SPL06::readPressure()
@@ -362,34 +350,34 @@ double SPL06::readPressure()
 //unit is atmosphere
 double SPL06::readPressureATM()
 {
-    return (readPressure()/(101325.0d));
+    return (readPressure()/(101325.0F));
 }
 //unit is kiloPascal
 double SPL06::readPressureKPa()
 {
-    return (readPressure()/(1000.0d));
+    return (readPressure()/(1000.0F));
 }
 //unit is milli-bar
 double SPL06::readPressureMBar()
 {
-    return (readPressure()/(100.0d));
+    return (readPressure()/(100.0F));
 }
 //unit is PSI
 double SPL06::readPressurePSI()
 {
-	return ((readPressure()*0.0254d*0.0254d)/(0.45359237d * 9.80665d));
+	return ((readPressure()*0.0254F*0.0254F)/(0.45359237F * 9.80665F));
 }
 //mm of mercury
 double SPL06::readPressureMMHg()
 {
     // 1 mmHg is equal exactly to 133.322387415 pascal
-    return (readPressure()/133.322387415d);
+    return (readPressure()/133.322387415F);
 }
 //in of mercury
 double SPL06::readPressureINHg()
 {
     // 1 mmHg is equal exactly to 133.322387415 pascal
-    return (readPressure()/(25.4d*133.322387415d));
+    return (readPressure()/(25.4F*133.322387415F));
 }
 //estimated altitude in meters
 //reference: https://www.weather.gov/media/epz/wxcalc/pressureAltitude.pdf
@@ -397,14 +385,14 @@ float SPL06::readPressureAltitudeMeter(float altimeterSetting_mbar)
 {
     double pressure_mbar = readPressureMBar();
     //0.190284 = 1.0/5.255
-    return (0.3048d*(1.0d-pow((pressure_mbar/altimeterSetting_mbar),(1.0d/5.255d) ))*145366.45d);//correct the formula for meters using 0.3048
+    return (0.3048F*(1.0F-pow((pressure_mbar/altimeterSetting_mbar),(1.0F/5.255F) ))*145366.45F);//correct the formula for meters using 0.3048
 }
 //estimated altitude in feet
 //reference: https://www.weather.gov/media/epz/wxcalc/pressureAltitude.pdf
 float SPL06::readPressureAltitudeFeet(float altimeterSetting_inHg)
 {
     double pressure_inHg = readPressureINHg();
-    return ((1.0d-pow((pressure_inHg/altimeterSetting_inHg),(1.0d/5.255d) ))*145366.45d);//do not correct the formula for meters
+    return ((1.0F-pow((pressure_inHg/altimeterSetting_inHg),(1.0F/5.255F) ))*145366.45F);//do not correct the formula for meters
 }
 
 

@@ -20,10 +20,8 @@
 // for example, register contains reg=12345678, to keep only the 567, do this:
 // mydata = reg & 0B00001110;  note that the notation for literal binary starts with 0B and the following 8 values can only be 0 or 1
 
-#include <Arduino.h>
-#include <Adafruit_Sensor.h>
-#include <Adafruit_I2CDevice.h>
-#include <Adafruit_SPIDevice.h>
+
+#include "spl06_001_glue.h" // Minimal glue for Adafruit/Arduino compatibility
 
 #define SPL06_ADDRESS                   0x77 /**< Default I2C address from datasheet */
 #define SPL06_ADDRESS_ALT               0x76 /**< Alternate I2C address from datasheet */
@@ -78,11 +76,14 @@ class SPL06; //forward declaration
 /** Sensor interface for temperature component of SPL06, derived from Adafruit sensor class */
 class SPL06_Temp : public Adafruit_Sensor {
 public:
+  using Adafruit_Sensor::getEvent;
+  using Adafruit_Sensor::getSensor;
   /** @brief Create an Adafruit_Sensor compatible object for the temp sensor
       @param parent A pointer to the SPL06 class */
   SPL06_Temp(SPL06 *parent) { _theSPL06 = parent; }
   bool getEvent(sensors_event_t *);
   void getSensor(sensor_t *);
+  virtual ~SPL06_Temp() {}
 private:
   int _sensorID = 0;
   SPL06 *_theSPL06 = NULL;
@@ -91,11 +92,14 @@ private:
 /** Sensor interface for pressure component of SPL06, derived from Adafruit sensor class */
 class SPL06_Pressure : public Adafruit_Sensor {
 public:
+  using Adafruit_Sensor::getEvent;
+  using Adafruit_Sensor::getSensor;
   /** @brief Create an Adafruit_Sensor compatible object for the pressure sensor
       @param parent A pointer to the SPL06 class */
   SPL06_Pressure(SPL06 *parent) { _theSPL06 = parent; }
   bool getEvent(sensors_event_t *);
   void getSensor(sensor_t *);
+  virtual ~SPL06_Pressure() {}
 private:
   int _sensorID = 0;
   SPL06 *_theSPL06 = NULL;
