@@ -60,9 +60,9 @@ bool SPL06::begin(uint8_t addr, uint8_t prodid)
     }
 
   // check if sensor, i.e. the chip ID is correct
-    //_sensorID = read8(SPL06_DEVICE_ID);
+
     _sensorID = readSensorID(SPL06_DEVICE_ID);
-    //Serial.printf("Prod ID: [%d] Rev[%d]\n",_prodID,_revID);
+
     if (_sensorID != prodid)
         return false;
 
@@ -141,7 +141,7 @@ uint8_t SPL06::read8(byte reg)
     uint8_t buffer[1];
     if (i2c_dev) {
         buffer[0] = uint8_t(reg);
-        i2c_dev->write_then_read(buffer, 1, buffer, 1);
+        i2c_dev->write_then_readBlocking(buffer, 1, buffer, 1);
     }
     else {
         buffer[0] = uint8_t(reg | 0x80);

@@ -14,15 +14,11 @@ extern volatile uint8_t i2cWriteComplete;
 }
 #endif
 
-#include "platform_abstraction.h" // For SerialI2CDebug macros
+//#include "platform_abstraction.h" // For SerialI2CDebug macros
 #include <stdint.h>
 #include <stdio.h>
 #include <stddef.h>
 #include <string.h>
-
-extern UART_HandleTypeDef huart2;
-
- 
 
 
 // Arduino compatibility
@@ -43,69 +39,52 @@ class Adafruit_I2CDevice {
 public:
     Adafruit_I2CDevice(uint8_t addr, void *wire = nullptr) : _addr(addr << 1) { (void)wire; }
 
-    // Non-blocking transmit (interrupt mode)
+    // Non-blocking transmit (interrupt mode) - used writing cfg registers 2 bytes: first=register address, second=value
     bool write(uint8_t *data, size_t len) {
-      uint8_t status;
- //     char str_Buf[80];
-        //SerialI2CDebug_print((char*)"write non blocking");
-
-//        status = HAL_I2C_Master_Transmit_IT(&hi2c2, _addr, data, len) == HAL_OK;
-        status = HAL_I2C_Master_Transmit(&hi2c2, _addr, data, len,100) == HAL_OK;
-//        snprintf (str_Buf, 80, "TX_IT \tI2C_Addr=0x%x Wlen=%d \t\tSPL_Reg=0x%02x W_Val=0x%02x W_Stat=0x%02x\n\r", _addr/2, len, *data, *(data+1), status); // Ensure register address is sent as single byte
-//        SerialI2CDebug_print(str_Buf);
-//        HAL_Delay(2);
-        return (status);
+        return HAL_I2C_Master_Transmit(&hi2c2, _addr, data, len,100) == HAL_OK;
     }
-    // Non-blocking receive (interrupt mode)
+/*
+    // Non-blocking receive (interrupt mode) - not used, but provided for completeness
     bool read(uint8_t *data, size_t len) {
-        //Serial2Debug_println((char*)"read non blocking");
         return HAL_I2C_Master_Receive_IT(&hi2c2, _addr, data, len) == HAL_OK;
     }
-    // Blocking versions for initialization/config
+*/
+/*
+    // Blocking version of write (not used, but provided for completeness)
     bool writeBlocking(uint8_t *data, size_t len) {
         //Serial2Debug_println((char*)"write blocking");
         return HAL_I2C_Master_Transmit(&hi2c2, _addr, data, len, 100) == HAL_OK;
     }
+*/
+/*  // Blocking version of read (not used, but provided for completeness) 
     bool readBlocking(uint8_t *data, size_t len) {
         //Serial2Debug_println((char*)"read blocking"); 
         return HAL_I2C_Master_Receive(&hi2c2, _addr, data, len, 100) == HAL_OK;
     }
-
+*/
     // SPL06-001 expects this for initialization
     bool begin() { return true; }
-    // SPL06-001 expects this for register read
 
-    bool write_then_read(uint8_t *wbuf, size_t wlen, uint8_t *rbuf, size_t rlen) {
-      char str_Buf[80];
+    // SPL06-001 expects this for register read operations (write register address, then read data) 
+    // used for reading sensor ID and coefficients, and for reading pressure/temp data -byte by byte 
+    bool write_then_readBlocking(uint8_t *wbuf, size_t wlen, uint8_t *rbuf, size_t rlen) {
       int status;
-  //      snprintf (str_Buf, 80, "TX_RX \tI2C_Addr=0x%x Wlen=%d Rlen=%d \tSPL_Reg=0x%02x ", _addr/2, wlen, rlen, *wbuf); // Ensure register address is sent as single byte
-//        Serial2Debug_print(str_Buf);
         status = HAL_I2C_Master_Transmit(&hi2c2, _addr, wbuf, wlen, 100);
         if (status != HAL_OK){
-//          snprintf (str_Buf, 80, "W_Stat= 0x%02x \n\r", status); // Ensure register address is sent as single byte
-//          Serial2Debug_print(str_Buf);
           return false;
         }
-//        HAL_Delay(1); 
         status=HAL_I2C_Master_Receive(&hi2c2, _addr, rbuf, rlen, 100);
         if (status != HAL_OK) {
-        snprintf (str_Buf, 80, " R_Val=0x%02x R_Stat= 0x%02x \n\r", *rbuf, status); // Ensure register address is sent as single byte
-//        Serial2Debug_print(str_Buf);
             HAL_I2C_DeInit(&hi2c2);
-//            HAL_Delay(2);
             HAL_I2C_Init(&hi2c2);
- //           HAL_Delay(2);
           return false;
         }
-//        HAL_Delay(1); 
-//        snprintf(str_Buf2,80,"R_Val=0x%04x R_Stat=0x%02x\n\r", *rbuf, status);
-//        Serial2Debug_print(str_Buf2); 
         return true;
-
     }
+
 private:
     uint8_t _addr;
-};
+}; // End of Adafruit_I2CDevice stub class
 
 // Minimal SPI device stub (not used, but needed for SPL06-001)
 
@@ -121,7 +100,8 @@ public:
     bool begin() { return true; }
     bool write(uint8_t*, size_t) { return true; }
     bool write_then_read(uint8_t*, size_t, uint8_t*, size_t) { return true; }
-};
+}; // End of Adafruit_SPIDevice stub class
+
 // Math and NAN compatibility
 #include <math.h>
 #ifndef NAN
@@ -135,25 +115,18 @@ public:
 #ifndef SCL2
 #define SCL2 1
 #endif
+
 struct TwoWire {
     TwoWire(int sda = 0, int scl = 1) { (void)sda; (void)scl; }
     bool begin() { return true; }
-};
+};  
+
 static TwoWire Wire;
 
 // Minimal SPIClass stub for compatibility
 struct SPIClass {};
 static SPIClass SPI;
 
-
-// SerialI2Cdebug macro/function for UART2
-//#include "usart.h" // Ensure this header provides 'extern UART_HandleTypeDef huart2;'
-#define SerialI2Cdebug_print(msg) HAL_UART_Transmit(&huart2, (uint8_t*)(msg), strlen(msg), 100)
-#define SerialI2Cdebug_println(msg) do { \
-    HAL_UART_Transmit(&huart2, (uint8_t*)(msg), strlen(msg), 100); \
-    const char crlf[] = "\r\n"; \
-    HAL_UART_Transmit(&huart2, (uint8_t*)crlf, 2, 100); \
-} while(0)
 
 // Minimal sensor_t and sensors_event_t stubs for compatibility
 typedef struct {
