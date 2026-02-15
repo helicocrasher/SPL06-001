@@ -20,7 +20,6 @@ extern volatile uint8_t i2cWriteComplete;
 #include <stddef.h>
 #include <string.h>
 
-
 // Arduino compatibility
 typedef uint8_t byte;
 
@@ -39,7 +38,7 @@ class Adafruit_I2CDevice {
 public:
     Adafruit_I2CDevice(uint8_t addr, void *wire = nullptr) : _addr(addr << 1) { (void)wire; }
 
-    // Non-blocking transmit (interrupt mode) - used writing cfg registers 2 bytes: first=register address, second=value
+    // Non-blocking transmit (interrupt mode) - used for writing cfg registers 2 bytes: first=register address, second=value
     bool write(uint8_t *data, size_t len) {
         return HAL_I2C_Master_Transmit(&hi2c2, _addr, data, len,100) == HAL_OK;
     }
@@ -65,6 +64,7 @@ public:
     // SPL06-001 expects this for initialization
     bool begin() { return true; }
 
+    // Blocking version of write_then_read heavily used for SPL06-001 register reads (sensor ID, coefficients, pressure/temp data)
     // SPL06-001 expects this for register read operations (write register address, then read data) 
     // used for reading sensor ID and coefficients, and for reading pressure/temp data -byte by byte 
     bool write_then_readBlocking(uint8_t *wbuf, size_t wlen, uint8_t *rbuf, size_t rlen) {
