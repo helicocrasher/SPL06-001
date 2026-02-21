@@ -1,6 +1,19 @@
 # SPL06-001
 SPL06-001 library for Arduino processors
 
+## Changes from Original Fork
+
+This repository is a fork of [happy12/SPL06-001](https://github.com/happy12/SPL06-001).
+
+To see the full diff between this fork and the original, visit the GitHub comparison page:
+[https://github.com/happy12/SPL06-001/compare/main...helicocrasher:SPL06-001:main](https://github.com/happy12/SPL06-001/compare/main...helicocrasher:SPL06-001:main)
+
+### Summary of changes
+
+- Added `spl06_001_glue.h`: a minimal STM32 HAL glue layer that replaces the Arduino/Adafruit dependencies, allowing the library to run on STM32 microcontrollers (e.g. BluePill, MatekSYS CRSF PWM V1.0) without the Arduino core.
+- Added `README_STM32_GLUE.md`: documentation for the STM32 glue integration.
+- Modified `SPL06-001.h` and `SPL06-001.cpp` to include `spl06_001_glue.h` instead of the Adafruit/Arduino headers, enabling bare-metal STM32 usage.
+
 Arduino library for the SPL06-001 pressure sensor.
 Derived from Adafruit_Sensor open-source library.
 Code was developed and tested on an ESP32-S2 microcontroller.
