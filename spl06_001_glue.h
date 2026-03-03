@@ -8,10 +8,22 @@
 
 #ifdef TARGET_MATEKSYS_CRSF_PWM_V10
 #include "stm32g0xx_hal.h"
+#define __HI2C  hi2c2
 #endif
 
 #ifdef TARGET_WEACT_G031
 #include "stm32g0xx_hal.h"
+#define __HI2C  hi2c2
+#endif
+
+#ifdef TARGET_BLUEPILL
+#include "stm32f1xx_hal.h"
+#define __HI2C  hi2c1 // for BluePill
+#endif
+
+#ifdef TARGET_MATEKSYS_CRSF_PWM_V10
+#include "stm32g0xx_hal.h"
+#define __HI2C  hi2c2 // for MatekSYS_CRSF_PWM_V10
 #endif
 
 #ifdef __cplusplus
